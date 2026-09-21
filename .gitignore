@@ -1,0 +1,26 @@
+# Downloaded data (~154 MB) -- rebuild with ./download_data.sh
+data/
+
+# Job output (~234 MB) -- rebuild with ./run_all_jobs.sh
+output/
+
+# Event logs written by the jobs; the history server rebuilds its UI from these.
+# Machine-specific (absolute paths, hostnames) and regenerated on every run.
+spark-events/
+
+# History server's own log + pid file
+logs/
+
+# Spark leftovers if a job ever uses the Hive metastore or a warehouse dir
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
