@@ -1,6 +1,6 @@
 # Spark History Server demo
 
-Four PySpark jobs transform ~9.5M NYC taxi trips (Jan-Mar 2024) so you can explore what the
+Five PySpark jobs transform ~9.5M NYC taxi trips (Jan-Mar 2024) so you can explore what the
 **Spark History Server** shows about them.
 
 ## What the history server is
@@ -24,7 +24,7 @@ jobs/*.py ──(event log)──▶ spark-events/ ◀──(reads)── histor
 cd history_server_demo
 ./download_data.sh          # ~150 MB from the NYC TLC site (already done)
 ./start_history_server.sh   # http://localhost:18080 (empty until a job has run)
-./run_all_jobs.sh           # runs the 4 jobs, ~2 min total
+./run_all_jobs.sh           # runs all 5 jobs, ~3 min total
 ./stop_history_server.sh    # when you're done
 ```
 
@@ -42,6 +42,7 @@ failure in the UI.
 | 02 aggregations | `jobs/02_aggregations.py` | groupBy / SQL / pivot -> shuffles, multi-stage jobs, AQE, skipped stages |
 | 03 joins & windows | `jobs/03_joins_windows.py` | Broadcast join vs. sort-merge join of the same query; window functions |
 | 04 cache, skew, UDF & failure | `jobs/04_cache_skew_udf_failure.py` | Storage tab, data skew, Python UDF cost, a failed job |
+| 05 shuffle-heavy (unoptimized) | `jobs/05_shuffle_heavy.py` | Everything done wrong on purpose: ~10 shuffles, AQE off, 200-task stages, no caching. Takes ~40-95s vs ~10s for job 2. |
 
 The docstring at the top of each file lists exactly what to look for.
 
@@ -97,6 +98,25 @@ Inside an app, the tabs across the top are:
    - The "Details" section at the bottom of each query page has the text plan, the same output
      as `df.explain()`.
 
+### Comparing a good job with a bad one
+
+App 05 exists to be compared with the others. Same laptop, same data, ~5-10x the run time of app 02:
+
+| | 02 aggregations | 05 shuffle-heavy |
+|---|---|---|
+| Wall time | ~8s | ~40-95s |
+| Stages / tasks | 15 / 47 | 28 / 3154 |
+| Read from disk | ~82 MB | ~105 MB |
+| Moved through shuffles | ~15 MB | ~486 MB |
+
+Nothing about the *question* it answers is expensive. The cost is entirely in how it's written:
+roughly the same bytes read from disk, 30x more shuffled, 67x the tasks.
+
+Run it twice and the numbers move a lot (the second run is faster because the OS has the parquet
+files in page cache, and the JVM has JIT-compiled the hot paths). That's worth seeing for itself:
+when you compare two runs of a job, some of the difference is never the code. Compare the shuffle
+byte counts and task counts, which are stable, rather than wall-clock alone.
+
 ## Also try
 
 - Change `spark.sql.shuffle.partitions` in `jobs/common.py` from 16 to 200, rerun job 2, and
@@ -111,7 +131,7 @@ Inside an app, the tabs across the top are:
 
 ```
 history_server_demo/
-├── jobs/            # common.py (SparkSession + event log config) and the 4 jobs
+├── jobs/            # common.py (SparkSession + event log config) and the 5 jobs
 ├── data/            # raw taxi parquet + zone lookup CSV (download_data.sh)
 ├── output/          # what the jobs write (trips_clean/, daily_totals/, ...)
 ├── spark-events/    # event logs -- one file per app; delete to reset the history server
