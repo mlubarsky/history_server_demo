@@ -15,35 +15,20 @@ What it does with them:
   3. flags skewed stages: ones where the slowest task took far longer than the median task
 
 Usage (history server must be running: ./start_history_server.sh):
-    uv run python analyze_history.py
-    uv run python analyze_history.py --url http://some-cluster:18080
+    python3 analyze_history.py
+    python3 analyze_history.py --url http://some-cluster:18080
 """
 
 import argparse
 import json
-import urllib.request
 from pathlib import Path
 
 import pandas as pd
 
+from data_utils.analysis import SKEW_RATIO, find_skew, summarize
+from data_utils.fetch import fetch_app, get
+
 DUMP_DIR = Path(__file__).resolve().parent / "history_dump"
-
-# A stage is "skewed" when its slowest task ran SKEW_RATIO x longer than the median task,
-# and long enough to matter (tiny stages always have noisy ratios).
-SKEW_RATIO = 5
-SKEW_MIN_MAX_MS = 1000
-
-
-def get(base_url: str, path: str):
-    with urllib.request.urlopen(f"{base_url}/api/v1/{path}") as resp:
-        return json.load(resp)
-
-
-def fetch_app(base_url: str, app_id: str) -> dict:
-    return {
-        "jobs": get(base_url, f"applications/{app_id}/jobs"),
-        "stages": get(base_url, f"applications/{app_id}/stages"),
-    }
 
 
 def dump(app_id: str, data: dict) -> None:
@@ -52,46 +37,6 @@ def dump(app_id: str, data: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     for name, payload in data.items():
         (out / f"{name}.json").write_text(json.dumps(payload, indent=1))
-
-
-def summarize(app: dict, data: dict) -> dict:
-    jobs = pd.DataFrame(data["jobs"])
-    # Skipped stages did no work (their output was reused), so leave them out of the totals.
-    stages = pd.DataFrame(data["stages"]).query("status != 'SKIPPED'")
-    attempt = app["attempts"][-1]
-    return {
-        "app": app["name"],
-        "duration_s": attempt["duration"] / 1000,
-        "jobs": len(jobs),
-        "failed_jobs": int((jobs["status"] == "FAILED").sum()),
-        "stages": len(stages),
-        "tasks": int(stages["numTasks"].sum()),
-        "input_MB": stages["inputBytes"].sum() / 1e6,
-        "shuffle_write_MB": stages["shuffleWriteBytes"].sum() / 1e6,
-        "gc_s": stages["jvmGcTime"].sum() / 1000,
-    }
-
-
-def find_skew(base_url: str, app: dict, stages: list[dict]) -> list[dict]:
-    flagged = []
-    for s in stages:
-        if s["status"] != "COMPLETE" or s["numTasks"] < 4:
-            continue
-        summary = get(
-            base_url,
-            f"applications/{app['id']}/stages/{s['stageId']}/{s['attemptId']}/taskSummary?quantiles=0.5,1.0",
-        )
-        median_ms, max_ms = summary["executorRunTime"]
-        if max_ms >= SKEW_MIN_MAX_MS and max_ms > SKEW_RATIO * max(median_ms, 1):
-            flagged.append({
-                "app": app["name"],
-                "stage": s["stageId"],
-                "tasks": s["numTasks"],
-                "median_task_s": median_ms / 1000,
-                "max_task_s": max_ms / 1000,
-                "description": (s.get("description") or s["name"])[:60],
-            })
-    return flagged
 
 
 def main() -> None:
