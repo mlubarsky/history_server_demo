@@ -127,6 +127,17 @@ byte counts and task counts, which are stable, rather than wall-clock alone.
   history server shows later.
 - `curl localhost:18080/api/v1/applications` returns the same data as JSON through the REST API.
 
+## Reading the history server from code
+
+The history server's REST API (`/api/v1/...`) returns everything the UI shows as JSON. Two
+scripts use it (the history server must be running):
+
+- `uv run streamlit run dashboard.py` opens a local GUI at http://localhost:8501. The **Compare
+  apps** tab charts any metric across all apps. The **App detail** tab shows one app's headline
+  numbers, a timeline of its stages, its Spark jobs, and any skewed stages.
+- `uv run python analyze_history.py` prints the same comparison in the terminal and saves the raw
+  JSON to `history_dump/` for offline analysis.
+
 ## Folder layout
 
 ```
