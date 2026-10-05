@@ -4,7 +4,7 @@
 set -euo pipefail
 DEMO_DIR="$(cd "$(dirname "$0")" && pwd)"
 export JAVA_HOME="${JAVA_HOME:-$(/opt/homebrew/bin/brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home}"
-export SPARK_HOME="$(cd "$DEMO_DIR" && uv run python -c 'import pyspark, os; print(os.path.dirname(pyspark.__file__))')"
+export SPARK_HOME="$(python3 -c 'import pyspark, os; print(os.path.dirname(pyspark.__file__))')"
 export SPARK_LOCAL_IP=127.0.0.1         # bind to localhost only, not your whole network
 export SPARK_LOG_DIR="$DEMO_DIR/logs"    # history server's own log (not the apps' event logs)
 export SPARK_PID_DIR="$DEMO_DIR/logs"
