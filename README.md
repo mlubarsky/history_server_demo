@@ -127,16 +127,64 @@ byte counts and task counts, which are stable, rather than wall-clock alone.
   history server shows later.
 - `curl localhost:18080/api/v1/applications` returns the same data as JSON through the REST API.
 
-## Reading the history server from code
+## The GUI (Spark History Explorer)
 
-The history server's REST API (`/api/v1/...`) returns everything the UI shows as JSON. Two
-scripts use it (the history server must be running):
+`dashboard.py` is a local web app (built with [Streamlit](https://streamlit.io)) that reads every
+app from the history server's REST API and shows:
 
-- `uv run streamlit run dashboard.py` opens a local GUI at http://localhost:8501. The **Compare
-  apps** tab charts any metric across all apps. The **App detail** tab shows one app's headline
-  numbers, a timeline of its stages, its Spark jobs, and any skewed stages.
-- `uv run python analyze_history.py` prints the same comparison in the terminal and saves the raw
-  JSON to `history_dump/` for offline analysis.
+- **Compare apps**: a bar chart of any metric (wall time, tasks, stages, shuffle bytes, ...) across
+  all apps, plus a table with every metric.
+- **App detail**: one app's headline numbers, a timeline of its stages, its Spark jobs, and any
+  skewed stages (where the slowest task took more than 5x the median task).
+
+```
+spark-events/ ──▶ history server (:18080) ──REST API──▶ dashboard.py ──▶ http://localhost:8501
+```
+
+### One-time setup
+
+1. **Install the tools**: [uv](https://docs.astral.sh/uv/) and Java 17 (`brew install uv openjdk@17`).
+2. **Make sure `openprise/sample-pyspark/` exists.** The shared `openprise/pyproject.toml` lists it
+   as a workspace member, and it's what installs pyspark. Without it, every `uv run` fails. If it's
+   missing, clone it back:
+   ```bash
+   cd openprise
+   git clone git@github.com:mlim1972/sample-pyspark.git
+   ```
+3. **Install the Python dependencies** into the shared `openprise/.venv`. `streamlit` is already
+   listed in `openprise/pyproject.toml`:
+   ```bash
+   cd openprise
+   uv sync
+   ```
+4. **Give the history server something to show.** The GUI only displays apps that have event logs
+   in `spark-events/`. If that folder is empty, run the jobs once (see [Run it](#run-it)):
+   ```bash
+   cd openprise/history_server_demo
+   ./run_all_jobs.sh
+   ```
+
+### Each time
+
+Run these from `openprise/history_server_demo/`. `uv run` finds the right environment by looking at
+the current folder, so from anywhere outside `openprise/` it fails with
+`Failed to spawn: streamlit`.
+
+```bash
+./start_history_server.sh           # the GUI reads from this, so start it first
+uv run streamlit run dashboard.py   # opens http://localhost:8501
+```
+
+Stop the GUI with Ctrl+C and the history server with `./stop_history_server.sh`.
+
+The GUI caches data for 60 seconds. After running a new job, click **Refresh** in the sidebar. To
+point it at another history server, change the URL in the sidebar.
+
+### Without the GUI
+
+`uv run python analyze_history.py` prints the same comparison in the terminal and saves the raw
+JSON from the API to `history_dump/` for offline analysis (pandas, notebooks...). Both scripts use
+the same functions, so analysis logic added to `analyze_history.py` can be shown in the GUI too.
 
 ## Folder layout
 
@@ -146,7 +194,10 @@ history_server_demo/
 ├── data/            # raw taxi parquet + zone lookup CSV (download_data.sh)
 ├── output/          # what the jobs write (trips_clean/, daily_totals/, ...)
 ├── spark-events/    # event logs -- one file per app; delete to reset the history server
-└── logs/            # the history server's own log + pid file
+├── logs/            # the history server's own log + pid file
+├── dashboard.py     # the GUI (Streamlit)
+├── analyze_history.py  # fetches + summarizes apps from the REST API (used by the GUI)
+└── history_dump/    # raw API JSON saved by analyze_history.py
 ```
 
 Uses the shared `openprise/.venv` (no venv of its own) and Java 17.
