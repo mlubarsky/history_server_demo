@@ -8,6 +8,9 @@ output/
 # Machine-specific (absolute paths, hostnames) and regenerated on every run.
 spark-events/
 
+# Raw REST API JSON saved by analyze_history.py
+history_dump/
+
 # History server's own log + pid file
 logs/
 
