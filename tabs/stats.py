@@ -3,10 +3,12 @@
 Lisa's additions start here.
 """
 
+import altair as alt
+import pandas as pd
 import streamlit as st
 
 from data_utils.analysis import compute_stats
-from tabs.constants import COUNT_METRICS, METRICS
+from tabs.constants import COUNT_METRICS, METRICS, get_blue
 
 # Which metrics get their own outlier callout card, and what label to show
 OUTLIER_METRICS = [
@@ -56,3 +58,41 @@ def render(summary) -> None:
             "max":    st.column_config.NumberColumn("Max",    format="%.1f"),
         },
     )
+
+    st.divider()
+
+    # --- Shuffle efficiency chart -----------------------------------------------
+    st.markdown("#### Shuffle efficiency")
+    st.caption(
+        "Compares how much data each app actually read from disk vs. how much it moved through shuffles. "
+        "A shuffle bar much taller than the input bar means the job is reshuffling data far more than necessary."
+    )
+
+    blue = get_blue()
+
+    # Build a long-form DataFrame so Altair can group the two bars per app
+    chart_df = pd.concat([
+        summary[["app", "input_MB"]].rename(columns={"input_MB": "MB"}).assign(type="Input read"),
+        summary[["app", "shuffle_write_MB"]].rename(columns={"shuffle_write_MB": "MB"}).assign(type="Shuffle write"),
+    ])
+
+    chart = (
+        alt.Chart(chart_df)
+        .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+        .encode(
+            x=alt.X("app:N", title=None, axis=alt.Axis(labelAngle=-20, labelLimit=200)),
+            y=alt.Y("MB:Q", title="MB", axis=alt.Axis(grid=True)),
+            color=alt.Color(
+                "type:N",
+                scale=alt.Scale(domain=["Input read", "Shuffle write"], range=[blue, "#e07b39"]),
+                legend=alt.Legend(title=None, orient="top"),
+            ),
+            xOffset="type:N",
+            tooltip=[
+                alt.Tooltip("app:N", title="App"),
+                alt.Tooltip("type:N", title="Type"),
+                alt.Tooltip("MB:Q", title="MB", format=",.1f"),
+            ],
+        )
+    )
+    st.altair_chart(chart, width="stretch", height=320)
