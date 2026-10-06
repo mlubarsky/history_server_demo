@@ -25,6 +25,16 @@ def summarize(app: dict, data: dict) -> dict:
     }
 
 
+METRIC_COLS = ["duration_s", "tasks", "stages", "jobs", "input_MB", "shuffle_write_MB", "gc_s"]
+
+
+def compute_stats(summary: pd.DataFrame) -> pd.DataFrame:
+    """Return a table of min / median / mean / max for each metric across all apps."""
+    stats = summary[METRIC_COLS].agg(["min", "median", "mean", "max"]).T
+    stats.index.name = "metric"
+    return stats.reset_index()
+
+
 def find_skew(base_url: str, app: dict, stages: list[dict]) -> list[dict]:
     flagged = []
     for s in stages:
