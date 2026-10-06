@@ -28,8 +28,8 @@ def summarize(app: dict, data: dict) -> dict:
 METRIC_COLS = ["duration_s", "tasks", "stages", "jobs", "input_MB", "shuffle_write_MB", "gc_s"]
 
 
+# Aggregates all numeric metrics across apps into a min/median/mean/max summary table.
 def compute_stats(summary: pd.DataFrame) -> pd.DataFrame:
-    """Return a table of min / median / mean / max for each metric across all apps."""
     stats = summary[METRIC_COLS].agg(["min", "median", "mean", "max"]).T
     stats.index.name = "metric"
     return stats.reset_index()

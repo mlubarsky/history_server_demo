@@ -13,7 +13,6 @@ from data_utils.analysis import find_skew, summarize
 from data_utils.fetch import fetch_app, get
 from tabs.compare import render as render_compare
 from tabs.detail import render as render_detail
-from tabs.stats import render as render_stats
 
 st.set_page_config(page_title="Spark History Explorer", page_icon="⚡", layout="wide")
 
@@ -50,13 +49,10 @@ if not apps:
     st.info("The history server has no applications yet. Run a job: `./run_all_jobs.sh`.")
     st.stop()
 
-compare_tab, detail_tab, stats_tab = st.tabs(["Compare apps", "App detail", "Summary stats"])
+compare_tab, detail_tab = st.tabs(["Compare apps", "App detail"])
 
 with compare_tab:
     render_compare(summary)
 
 with detail_tab:
     render_detail(apps, data, summary, skew)
-
-with stats_tab:
-    render_stats(summary)

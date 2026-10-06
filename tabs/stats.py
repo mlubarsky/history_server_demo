@@ -1,6 +1,4 @@
 """Summary stats tab: cross-app averages, distributions, and outlier highlights.
-
-Lisa's additions start here.
 """
 
 import altair as alt
@@ -19,6 +17,7 @@ OUTLIER_METRICS = [
 ]
 
 
+# Renders the full Summary stats tab: outlier cards, stats table, and shuffle chart.
 def render(summary) -> None:
     st.subheader("Summary stats")
     st.caption("Aggregated across all applications currently loaded from the history server.")
