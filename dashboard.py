@@ -4,7 +4,13 @@ Usage (history server must be running: ./start_history_server.sh):
     python3 -m streamlit run dashboard.py     # opens http://localhost:8501
 """
 
+import os
+import sys
 import urllib.error
+
+# Ensure both the repo root (for data_utils/) and this file's directory (for tabs/) are on the path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
